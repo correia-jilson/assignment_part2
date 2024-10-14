@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Explorer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        h1 {
+            font-size: 36px;
+        }
+        p {
+            font-size: 24px;
+        }
+        /* Ensure that the canvas is sized correctly */
+        canvas {
+            display: block;
+            margin: 20px auto;
+            max-width: 600px;
+            width: 100%;
+            height: 300px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1"></script>
+</head>
+<body>
+    <h1>Bitcoin Explorer</h1>
+    <p id="block-height">Current Block Height: 0</p>
+    <p id="bitcoin-price">Current Bitcoin Price: $0</p>
+
+    <h2>On-chain Metrics</h2>
+    <canvas id="blockHeightChart"></canvas>
+    <canvas id="transactionCountChart"></canvas>
+
+    <h2>Off-chain Metrics</h2>
+    <canvas id="bitcoinPriceChart"></canvas>
+
+    <script>
+        let blockHeightChart, transactionCountChart, bitcoinPriceChart;
+
+        // Initialize charts
+        function initializeCharts() {
+            const ctxBlockHeight = document.getElementById('blockHeightChart').getContext('2d');
+            blockHeightChart = new Chart(ctxBlockHeight, {
+                type: 'line',
+                data: {
+                    labels: [],  // Will be populated dynamically
+                    datasets: [{
+                        label: 'Block Height',
+                        data: [],  // Will be populated dynamically
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute'
+                            }
+                        }
+                    }
+                }
+            });
+
+            const ctxTransactionCount = document.getElementById('transactionCountChart').getContext('2d');
+            transactionCountChart = new Chart(ctxTransactionCount, {
+                type: 'line',
+                data: {
+                    labels: [],  // Will be populated dynamically
+                    datasets: [{
+                        label: '24hr Transaction Count',
+                        data: [],  // Will be populated dynamically
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute'
+                            }
+                        }
+                    }
+                }
+            });
+
+            const ctxBitcoinPrice = document.getElementById('bitcoinPriceChart').getContext('2d');
+            bitcoinPriceChart = new Chart(ctxBitcoinPrice, {
+                type: 'line',
+                data: {
+                    labels: [],  // Will be populated dynamically
+                    datasets: [{
+                        label: 'Bitcoin Price',
+                        data: [],  // Will be populated dynamically
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fetch the current Bitcoin block height
+        async function fetchBlockHeight() {
+            try {
+                const response = await fetch('https://blockchain.info/q/getblockcount');
+                const blockHeight = await response.text();
+                return parseInt(blockHeight, 10);
+            } catch (error) {
+                console.error('Error fetching block height:', error);
+                return 0;
+            }
+        }
+
+        // Fetch the current Bitcoin price
+        async function fetchBitcoinPrice() {
+            try {
+                const response = await fetch('https://api.coindesk.com/v1/bpi/currentprice/BTC.json');
+                const data = await response.json();
+                const bitcoinPrice = parseFloat(data.bpi.USD.rate.replace(',', ''));
+                return bitcoinPrice;
+            } catch (error) {
+                console.error('Error fetching Bitcoin price:', error);
+                return 0;
+            }
+        }
+
+        // Fetch transaction count
+        async function fetchTransactionCount() {
+            try {
+                const response = await fetch('https://blockchain.info/q/24hrtransactioncount');
+                const transactionCount = await response.text();
+                return parseInt(transactionCount, 10);
+            } catch (error) {
+                console.error('Error fetching transaction count:', error);
+                return 0;
+            }
+        }
+
+        // Update charts with fetched data
+        async function updateOnChainMetrics() {
+            const blockHeight = await fetchBlockHeight();
+            const transactionCount = await fetchTransactionCount();
+
+            // Update HTML content
+            document.getElementById('block-height').textContent = `Current Block Height: ${blockHeight}`;
+
+            // Update Block Height chart
+            blockHeightChart.data.labels.push(new Date().toLocaleTimeString());
+            blockHeightChart.data.datasets[0].data.push(blockHeight);
+            blockHeightChart.update();
+
+            // Update Transaction Count chart
+            transactionCountChart.data.labels.push(new Date().toLocaleTimeString());
+            transactionCountChart.data.datasets[0].data.push(transactionCount);
+            transactionCountChart.update();
+        }
+
+        async function updateOffChainMetrics() {
+            const bitcoinPrice = await fetchBitcoinPrice();
+
+            // Update HTML content
+            document.getElementById('bitcoin-price').textContent = `Current Bitcoin Price: $${bitcoinPrice}`;
+
+            // Update Bitcoin Price chart
+            bitcoinPriceChart.data.labels.push(new Date().toLocaleTimeString());
+            bitcoinPriceChart.data.datasets[0].data.push(bitcoinPrice);
+            bitcoinPriceChart.update();
+        }
+
+        // Update metrics every minute
+        setInterval(() => {
+            updateOnChainMetrics();
+            updateOffChainMetrics();
+        }, 60000);
+
+        // On page load
+        window.onload = function() {
+            initializeCharts(); // Initialize charts
+            updateOnChainMetrics(); // First update
+            updateOffChainMetrics(); // First update
+        };
+    </script>
+</body>
+</html>
